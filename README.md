@@ -1,13 +1,19 @@
-# Interactive Dashboard of Student Activity Patterns (Demonstration)
+# Student Activity Dashboard (Demonstration)
 
-This interactive dashboard is modeled on a real-world data product I developed during my tenure at Harvard University. To protect sensitive student information, this public-facing version utilizes realistic simulated data of a fictitious liberal arts college to demonstrate the same core process and analytical capabilities.
+This dashboard is a demonstration modeled on a real-world data product I developed during my tenure at Harvard University. The original project solved the critical challenge of synthesizing disparate data streams—such as building access swipes and event check-ins—to provide leadership with actionable intelligence on student engagement patterns.
 
-The original project solved the challenge of synthesizing disparate data streams (like building access swipes and event check-ins) to provide leadership with actionable intelligence on student engagement. 
+### Data Simulation & Methodology
 
-This demonstration showcases my end-to-end ability to:
+To protect sensitive student information, this public-facing version is built upon an entirely synthetic dataset. This process demonstrates a key modern skill:
 
-*   **Conceptualize and Build a Data Product:** Taking a business need from an idea to a deployed, interactive tool.
+-   **Generative AI for Data Simulation:** Leveraged GenAI techniques to create a realistic, high-fidelity dataset that mimics the structure and complexity of real-world student activity. This allows for full-featured development and demonstration while ensuring complete privacy and ethical data handling.
+
+### Core Competencies Showcased
+
+This project highlights my end-to-end ability to transform a business need into a deployed data solution:
+
+*   **Conceptualize and Build a Data Product:** Taking a strategic goal from an initial idea to a functional, interactive tool.
 *   **Synthesize and Integrate Data:** Merging different data sources to create a unified and comprehensive view of user behavior.
-*   **Develop Dynamic Visualizations:** Building user-friendly tools in R (`Plotly`, `htmlwidgets`) that empower non-technical stakeholders to explore complex data on their own.
+*   **Develop Dynamic Visualizations:** Building user-friendly interfaces in R (`Plotly`, `crosstalk`) that empower non-technical stakeholders to explore complex data independently.
 
 The result is a powerful tool that transforms raw, disconnected data into an intuitive platform for strategic decision-making.
