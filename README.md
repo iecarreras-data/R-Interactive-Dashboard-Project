@@ -1,6 +1,6 @@
 # Student Activity Dashboard (Demonstration)
 
-This dashboard is a demonstration modeled on a real-world data product I developed during my tenure at Harvard University. The original project solved the critical challenge of synthesizing disparate data streams—such as building access swipes and event check-ins—to provide leadership with actionable intelligence on student engagement patterns.
+This dashboard is a demonstration modeled on a real-world data product I developed during my tenure at Harvard University. The original project solved the critical challenge of synthesizing disparate data streams, such as building access swipes and event check-ins, to provide leadership with actionable intelligence on student engagement patterns.
 
 ### Data Simulation & Methodology
 
