@@ -1,0 +1,255 @@
+---
+title: "Cheltenham College Daily Academic and Dining Dashboard"
+output: 
+  html_document:
+    self_contained: true
+    theme: null
+---
+
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body {
+  background-color: #f8f9fa;
+  font-family: 'Instrument Sans', sans-serif;
+  margin: 0;
+  padding: 20px;
+}
+
+/* Make the main container full-width */
+.main-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Remove default R Markdown container constraints */
+div.container-fluid {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Ensure the plotly figure uses full width */
+.plotly {
+  width: 100% !important;
+}
+
+h1.title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(here)
+library(tidyverse)
+library(plotly)
+library(htmltools)
+library(lubridate)
+
+# --- DATA PREPARATION ---
+df_raw <- readRDS(here::here("data", "dashboard_data.rds"))
+
+df_filtered <- df_raw %>%
+  filter(!is.na(Timestamp_15min)) %>%
+  filter(as.numeric(format(Timestamp_15min, "%u")) < 6)
+
+# --- DATA SUMMARIZATION ---
+df_summary <- df_filtered %>%
+  complete(Timestamp_15min, ActivityType, fill = list(Occupancy = 0)) %>%
+  group_by(Timestamp_15min, ActivityType) %>%
+  summarise(Total = sum(Occupancy), .groups = 'drop') %>%
+  pivot_wider(names_from = ActivityType, values_from = Total) %>%
+  rename(total_academic = `In Class`, total_dining = Dining) %>%
+  arrange(Timestamp_15min) %>%
+  mutate(
+    time_label = factor(format(Timestamp_15min, "%A %I:%M %p"), 
+                       levels = unique(format(Timestamp_15min, "%A %I:%M %p"))),
+    time_index = row_number(),
+    TimeOfDay = format(Timestamp_15min, "%I:%M %p")
+  )
+
+# --- DEFINE CONSTANTS ---
+ACADEMIC_COLOR <- "#007bff"
+DINING_COLOR <- "#6c757d"
+PLOT_BG_COLOR <- "#f8f9fa"
+
+BUBBLE_AREA_DIVISOR <- 75
+bubble_sizeref <- 2 * max(df_filtered$Occupancy, na.rm=TRUE) / (BUBBLE_AREA_DIVISOR^2)
+
+# --- BUILD PLOTLY FIGURE ---
+p <- plot_ly()
+
+# Add legend placeholder traces
+p <- p %>% 
+  add_trace(x = NA, y = NA, type = 'scatter', mode = 'markers', 
+            name = "In Class Activity", legendgroup = "class", 
+            marker = list(color = ACADEMIC_COLOR)) %>%
+  add_trace(x = NA, y = NA, type = 'scatter', mode = 'markers', 
+            name = "Dining Activity", legendgroup = "dining", 
+            marker = list(color = DINING_COLOR))
+
+# Loop through each timestamp to create frames
+for (i in 1:nrow(df_summary)) {
+  current_timestamp <- df_summary$Timestamp_15min[i]
+  df_map_step <- df_filtered %>% 
+    filter(Timestamp_15min == current_timestamp, Occupancy > 0)
+  
+  # Aggregate by location
+  df_loc_aggregated <- df_map_step %>%
+    group_by(Location, loc_x, loc_y, ActivityType) %>%
+    summarise(Occupancy = sum(Occupancy), .groups = 'drop') %>%
+    mutate(Color = ifelse(ActivityType == "In Class", ACADEMIC_COLOR, DINING_COLOR))
+  
+  # Aggregate by department
+  df_dept_aggregated <- df_map_step %>%
+    filter(ActivityType == "In Class") %>%
+    group_by(Department) %>%
+    summarise(Occupancy = sum(Occupancy), .groups = 'drop') %>%
+    mutate(Color = ACADEMIC_COLOR)
+  
+  df_kpi_step <- df_summary[i, ]
+  df_map_academic <- filter(df_loc_aggregated, ActivityType == "In Class")
+  df_map_dining <- filter(df_loc_aggregated, ActivityType == "Dining")
+  
+  # KPI text traces
+  p <- p %>%
+    add_trace(x = 0.5, y = 0.4, text = paste0("<b>", df_kpi_step$total_academic, "</b>"),
+              mode = 'text', type = 'scatter', 
+              textfont = list(color = ACADEMIC_COLOR, size = 80),
+              hoverinfo = 'none', visible = (i == 1), showlegend = FALSE,
+              xaxis = "x2", yaxis = "y2") %>%
+    add_trace(x = 1.5, y = 0.4, text = paste0("<b>", df_kpi_step$total_dining, "</b>"),
+              mode = 'text', type = 'scatter', 
+              textfont = list(color = DINING_COLOR, size = 80),
+              hoverinfo = 'none', visible = (i == 1), showlegend = FALSE,
+              xaxis = "x2", yaxis = "y2")
+  
+  # Bubble map traces
+  p <- p %>%
+    add_trace(data = df_map_academic, x = ~loc_x, y = ~loc_y, 
+              type = 'scatter', mode = 'markers', legendgroup = "class", showlegend = FALSE,
+              marker = list(color = ACADEMIC_COLOR, size = ~Occupancy, 
+                          sizemode = 'area', sizeref = bubble_sizeref, sizemin = 4,
+                          line = list(color = 'white', width = 1.5)),
+              hoverinfo = 'text', 
+              text = ~paste("<b>Location:</b>", Location, "<br><b>Occupancy:</b>", Occupancy),
+              visible = (i == 1), xaxis = "x1", yaxis = "y1") %>%
+    add_trace(data = df_map_dining, x = ~loc_x, y = ~loc_y, 
+              type = 'scatter', mode = 'markers', legendgroup = "dining", showlegend = FALSE,
+              marker = list(color = DINING_COLOR, size = ~Occupancy, 
+                          sizemode = 'area', sizeref = bubble_sizeref, sizemin = 4,
+                          line = list(color = 'white', width = 1.5)),
+              hoverinfo = 'text', 
+              text = ~paste("<b>Location:</b>", Location, "<br><b>Occupancy:</b>", Occupancy),
+              visible = (i == 1), xaxis = "x1", yaxis = "y1")
+  
+  # Treemap traces (3 separate treemaps)
+  p <- p %>%
+    add_trace(data = df_map_academic, type = 'treemap', 
+              domain = list(x = c(0.52, 1), y = c(0.55, 0.75)),
+              labels = ~Location, parents = "", values = ~Occupancy,
+              textinfo = "label", textfont = list(color = "white"),
+              marker = list(colors = ~Color), pathbar = list(visible = FALSE),
+              hoverinfo = 'label+value', visible = (i == 1), showlegend = FALSE) %>%
+    add_trace(data = df_dept_aggregated, type = 'treemap',
+              domain = list(x = c(0.52, 1), y = c(0.35, 0.53)),
+              labels = ~Department, parents = "", values = ~Occupancy,
+              textinfo = "label", textfont = list(color = "white"),
+              marker = list(colors = ~Color), pathbar = list(visible = FALSE),
+              hoverinfo = 'label+value', visible = (i == 1), showlegend = FALSE) %>%
+    add_trace(data = df_map_dining, type = 'treemap',
+              domain = list(x = c(0.52, 1), y = c(0.15, 0.33)),
+              labels = ~Location, parents = "", values = ~Occupancy,
+              textinfo = "label", textfont = list(color = "white"),
+              marker = list(colors = ~Color), pathbar = list(visible = FALSE),
+              hoverinfo = 'label+value', visible = (i == 1), showlegend = FALSE)
+}
+
+# --- BUILD SLIDER STEPS ---
+steps <- list()
+for (i in 1:nrow(df_summary)) {
+  visibility_vector <- rep(FALSE, 2 + 7 * nrow(df_summary))
+  start_index <- 2 + (7*i - 6)
+  end_index <- 2 + (7*i)
+  visibility_vector[start_index:end_index] <- TRUE
+  step <- list(
+    method = "restyle",
+    args = list("visible", visibility_vector),
+    label = as.character(df_summary$time_label[i])
+  )
+  steps[[i]] <- step
+}
+
+# Create tick marks for slider
+tick_data <- df_summary %>% filter(TimeOfDay %in% c("07:00 AM", "01:00 PM"))
+tick_indices <- tick_data$time_index
+tick_labels <- tick_data$time_label
+
+# --- LAYOUT CONFIGURATION ---
+dashboard_figure <- p %>%
+  layout(
+    height = 800,
+    font = list(family = "Instrument Sans"),
+    plot_bgcolor = PLOT_BG_COLOR,
+    paper_bgcolor = PLOT_BG_COLOR,
+    xaxis = list(
+      domain = c(0, 0.48), 
+      title = "Campus West-East Axis",
+      zeroline = FALSE, showgrid = FALSE, 
+      range = c(-2, 8), autorange = FALSE,
+      showticklabels = FALSE, showline = FALSE, ticks = ""
+    ),
+    yaxis = list(
+      domain = c(0.15, 0.75),
+      title = "Campus South-North Axis",
+      zeroline = FALSE, showgrid = FALSE,
+      range = c(-2, 8), autorange = FALSE,
+      showticklabels = FALSE, showline = FALSE, ticks = ""
+    ),
+    xaxis2 = list(domain = c(0, 1), visible = FALSE, range = c(0, 2)),
+    yaxis2 = list(domain = c(0.8, 1.0), visible = FALSE, range = c(0, 1)),
+    annotations = list(
+      list(x = 0.24, y = 0.77, text = "<b>Campus Activity Map</b>",
+           showarrow = FALSE, xref = "paper", yref = "paper",
+           xanchor = 'center', yanchor = 'middle', font = list(size = 24)),
+      list(x = 0.76, y = 0.77, text = "<b>Occupancy by Building</b>",
+           showarrow = FALSE, xref = "paper", yref = "paper",
+           xanchor = 'center', yanchor = 'middle', font = list(size = 16)),
+      list(x = 0.76, y = 0.54, text = "<b>Occupancy by Department</b>",
+           showarrow = FALSE, xref = "paper", yref = "paper",
+           xanchor = 'center', yanchor = 'middle', font = list(size = 16)),
+      list(x = 0.76, y = 0.34, text = "<b>Dining by Building</b>",
+           showarrow = FALSE, xref = "paper", yref = "paper",
+           xanchor = 'center', yanchor = 'middle', font = list(size = 16)),
+      list(x = 0.5, y = 1.0, text = "<b>Students in Class</b>",
+           showarrow = FALSE, xref = "x2", yref = "y2",
+           xanchor = 'center', font = list(size = 24, color = "#007bff")),
+      list(x = 1.5, y = 1.0, text = "<b>Students in Dining</b>",
+           showarrow = FALSE, xref = "x2", yref = "y2",
+           xanchor = 'center', font = list(size = 24, color = "#343a40"))
+    ),
+    legend = list(
+      orientation = 'h', x = 0.24, y = 0.13,
+      xanchor = 'center', yanchor = 'top'
+    ),
+    sliders = list(list(
+      active = 0, y = -0.1, yanchor = "bottom",
+      x = 0.5, xanchor = "center", len = 1.0,
+      currentvalue = list(prefix = "<b>Time: </b>", 
+                         font = list(size = 16), xanchor = "left"),
+      steps = steps,
+      tickvals = tick_indices - 1,
+      ticktext = tick_labels,
+      ticklen = 4,
+      tickfont = list(size = 10),
+      pad = list(t = 20, b = 20)
+    )),
+    margin = list(l = 80, r = 80, b = 180, t = 50)
+  )
+```
+
+```{r dashboard, echo=FALSE, fig.height=10}
+dashboard_figure
+```
