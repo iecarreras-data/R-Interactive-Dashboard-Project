@@ -127,8 +127,8 @@ This project demonstrates advanced data engineering practices:
 
 ### Contact & Attribution
 
-**Author:** Ismael Carreras Castro  
+**Author:** Ismael E. Carreras  
 **GitHub:** @iecarreras-data  
-**LinkedIn:** Ismael Carreras Castro
+**LinkedIn:** Ismael E. Carreras
 
 This project is based on real-world experience but uses entirely synthetic data for demonstration purposes.
