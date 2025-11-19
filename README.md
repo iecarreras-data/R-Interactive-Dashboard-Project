@@ -32,6 +32,7 @@ The repository is structured as a self-contained RStudio Project to ensure full 
 │   ├── 04_simulate_dining.R            
 │   ├── 05_create_dashboard_data.R      
 │   └── 06_build_dashboard.Rmd          
+│   └── render_both_versions.R      
 ├── data/                                
 ├── data-raw/                            
 ├── output/                              
